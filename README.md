@@ -86,5 +86,4 @@ decisiones están tomadas y justificadas en:
 
 ## Uso de IA
 
-Este proyecto se construyó con ayuda de **Claude** (Anthropic),
-en dos etapas:
+Este proyecto se construyó con ayuda de **Claude** (Anthropic)
