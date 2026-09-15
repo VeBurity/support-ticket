@@ -1,0 +1,19 @@
+# Env files (raíz / docker-compose)
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Logs sueltos en la raíz
+*.log
+
+# Postgres data si algún día se monta un volumen local en el repo
+pgdata/
