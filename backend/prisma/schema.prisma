@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  SUPERVISOR
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketChannel {
+  WEB
+  EMAIL
+  PHONE
+  MANUAL
+}
+
+enum TicketCategory {
+  BILLING
+  TECHNICAL_SUPPORT
+  ACCESS
+  OTHER
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role
+  status       UserStatus @default(ACTIVE)
+  tokenVersion Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ticketsCreated  Ticket[] @relation("CreatedBy")
+  ticketsAssigned Ticket[] @relation("AssignedTo")
+  comments        TicketComment[]
+
+  statusChangesBy     TicketStatusHistory[]     @relation("StatusChangedBy")
+  assignmentChangesBy TicketAssignmentHistory[] @relation("AssignChangedBy")
+  assignedFromEvents  TicketAssignmentHistory[] @relation("AssignFromUser")
+  assignedToEvents    TicketAssignmentHistory[] @relation("AssignToUser")
+
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  tokenHash      String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  replacedByHash String?
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  company   String?
+  createdAt DateTime @default(now())
+
+  tickets Ticket[]
+
+  @@map("customers")
+}
+
+model Ticket {
+  id                String         @id @default(uuid())
+  sequence          Int            @default(autoincrement()) @unique
+  folio             String         @unique
+  customerId        String
+  customer          Customer       @relation(fields: [customerId], references: [id])
+  title             String
+  description       String
+  status            TicketStatus   @default(OPEN)
+  priority          TicketPriority
+  category          TicketCategory
+  channel           TicketChannel  @default(WEB)
+  assignedToId      String?
+  assignedTo        User?          @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById       String
+  createdBy         User           @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  closedAt          DateTime?
+  slaDueAt          DateTime
+  reassignmentCount Int            @default(0)
+
+  comments          TicketComment[]
+  statusHistory     TicketStatusHistory[]
+  assignmentHistory TicketAssignmentHistory[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([customerId])
+  @@index([assignedToId])
+  @@index([updatedAt])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  body       String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketStatusHistory {
+  id          String        @id @default(uuid())
+  ticketId    String
+  ticket      Ticket        @relation(fields: [ticketId], references: [id])
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus
+  changedById String
+  changedBy   User          @relation("StatusChangedBy", fields: [changedById], references: [id])
+  changedAt   DateTime      @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_status_history")
+}
+
+model TicketAssignmentHistory {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id])
+  fromUserId  String?
+  fromUser    User?    @relation("AssignFromUser", fields: [fromUserId], references: [id])
+  toUserId    String?
+  toUser      User?    @relation("AssignToUser", fields: [toUserId], references: [id])
+  changedById String
+  changedBy   User     @relation("AssignChangedBy", fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_assignment_history")
+}
